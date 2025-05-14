@@ -13,18 +13,19 @@ Usage:
 - While the overlay is still open, set `name` to the name of the current moving image, and run script
  */
 
-//def name = getProjectEntry().getImageName()
-////////////////////
+// Variables to set
+//////////////////////////////////////////////////////////////
 
-def name='D1_PIMO' //specify name of moving (transform) image, as listed in the project
+def movingFileName='CRC-TMA_IF.ome.tiff' // SET ME! specify name of moving (transform) image, as listed in the project
 
-////////////////////
+//////////////////////////////////////////////////////////////
+
+
+
+
 path = buildFilePath(PROJECT_BASE_DIR, 'Affine')
 mkdirs(path)
-path = buildFilePath(PROJECT_BASE_DIR, 'Affine', name)
-
-
-
+path = buildFilePath(PROJECT_BASE_DIR, 'Affine', movingFileName)
 
 def overlay = getCurrentViewer().getCustomOverlayLayers().find {it instanceof ImageServerOverlay}
 

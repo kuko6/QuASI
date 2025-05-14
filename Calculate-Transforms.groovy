@@ -67,6 +67,7 @@ import static qupath.lib.gui.scripting.QPEx.*;
 
 // Variables to set
 //////////////////////////////////
+
 String registrationType="AFFINE" //Specify as "RIGID" or "AFFINE"
 String refStain = "PTEN" //stain to use as reference image (all images will be aligned to this)
 String wsiExt = ".ndpi" //image name extension
@@ -81,6 +82,8 @@ mov_rotation=180 // rotation to apply to ALL moving images before calculating al
 decrement_factor=1.1 // if iterations>1, by what factor to decrease AutoAlignPixelSize (increasing resolution of alignment). Set to 1 to leave AutoAlignPixelSize unchanged across iterations.
 
 /////////////////////////////////
+
+
 
 
 //Lim's code for file name matching

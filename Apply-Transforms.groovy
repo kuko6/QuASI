@@ -81,21 +81,28 @@ import java.awt.geom.AffineTransform
 
 import static qupath.lib.gui.scripting.QPEx.*
 def currentImageName = getProjectEntry().getImageName()
+
 // Variables to set
 //////////////////////////////////////////////////////////////
 
-def deleteExisting = false // SET ME! Delete existing objects
+def deleteExisting = true // SET ME! Delete existing objects
 def createInverse = true // SET ME! Change this if things end up in the wrong place
-def performDeconvolution = false // If brightfield image, separate channels into individual stains (remember to set them in original image)
-String refStain = "PTEN" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
+def performDeconvolution = true // If brightfield image, separate channels into individual stains (remember to set them in original image)
+
+String refFileName = "1-F_IHC.ome.tif" // SET ME! specify the name of the reference image
+// String refStain = "IHC" // Specify reference stain, should be same as in 'Calculate-Transforms.groovy'
+// String wsiExt = ".ome.tiff" //image name extension
+
 // Define an output path where the merged file should be written
 // Recommended to use extension .ome.tif (required for a pyramidal image)
 // If null, the image will be opened in a viewer
 String pathOutput = null
-//pathOutput = buildFilePath(PROJECT_BASE_DIR, currentImageName + '.ome.tif')
 double outputDownsample = 1 // Choose how much to downsample the output (can be *very* slow to export large images with downsample 1!)
 
 //////////////////////////////////////////////////////////////
+
+
+
 
 // Affine folder path
 path = buildFilePath(PROJECT_BASE_DIR, 'Affine')
@@ -106,53 +113,57 @@ def projectImageList = getProject().getImageList()
 def list_of_moving_image_names=[]
 def list_of_transforms=[]
 def list_of_reference_image_names=[]
+
 // Read and obtain filenames from Affine folder
 new File(path).eachFile{ f->
-    f.withObjectInputStream {
-        matrix = it.readObject()
-
-        def targetFileName = f.getName()
-        list_of_moving_image_names << targetFileName
-        def (targetImageName, imageExt) = targetFileName.split('\\.')
-        def (slideID, targetStain) = targetImageName.split('_')
-
-        def targetImage = projectImageList.find {it.getImageName() == targetFileName}
-        if (targetImage == null) {
-            print 'Could not find image with name ' + f.getName()
-            return
+    
+    if (f.getName() != '.DS_Store') {
+        
+        f.withObjectInputStream {
+            matrix = it.readObject()
+            
+            def targetFileName = f.getName()
+            list_of_moving_image_names << targetFileName
+            
+            // print("target file: " + targetFileName)
+            def (targetImageName, imageExt) = targetFileName.split('\\.')
+            // def targetImageName = targetFileName.split('\\.')
+            def (slideID, targetStain) = targetImageName.split('_')
+    
+            def targetImage = projectImageList.find {it.getImageName() == targetFileName}
+            if (targetImage == null) {
+                print 'Could not find image with name ' + f.getName()
+                return
+            }
+    
+            def targetImageData = targetImage.readImageData()
+            def targetHierarchy = targetImageData.getHierarchy()
+    
+            // refFileName = slideID + "_" + refStain + "." + imageExt
+            // refFileName = slideID + "_" + refStain + wsiExt
+            // list_of_reference_image_names << refFileName
+            
+            // print("ref file: " + refFileName)
+    
+            def refImage = projectImageList.find {it.getImageName() == refFileName}
+            def refImageData = refImage.readImageData()
+            def refHierarchy = refImageData.getHierarchy()
+    
+            def pathObjects = refHierarchy.getAnnotationObjects()
+    
+    
+            // Define the transformation matrix
+            def transform = new AffineTransform(
+                    matrix[0], matrix[3], matrix[1],
+                    matrix[4], matrix[2], matrix[5]
+            )
+            if (createInverse)
+                transform = transform.createInverse()
+    
+            if (deleteExisting)
+                targetHierarchy.clearAll()
+            list_of_transforms << transform
         }
-
-        def targetImageData = targetImage.readImageData()
-        def targetHierarchy = targetImageData.getHierarchy()
-
-        refFileName = slideID + "_" + refStain + "." + imageExt
-        list_of_reference_image_names << refFileName
-
-        def refImage = projectImageList.find {it.getImageName() == refFileName}
-        def refImageData = refImage.readImageData()
-        def refHierarchy = refImageData.getHierarchy()
-
-        def pathObjects = refHierarchy.getAnnotationObjects()
-
-
-        // Define the transformation matrix
-        def transform = new AffineTransform(
-                matrix[0], matrix[3], matrix[1],
-                matrix[4], matrix[2], matrix[5]
-        )
-        if (createInverse)
-            transform = transform.createInverse()
-
-        if (deleteExisting)
-            targetHierarchy.clearAll()
-        list_of_transforms << transform
-
-//        def newObjects = []
-//        for (pathObject in pathObjects) {
-//            newObjects << transformObject(pathObject, transform)
-//        }
-        //targetHierarchy.addPathObjects(newObjects)
-        //targetImage.saveImageData(targetImageData)
     }
 }
 list_of_reference_image_names=list_of_reference_image_names.unique()
@@ -162,7 +173,7 @@ list_of_reference_image_names=list_of_reference_image_names.unique()
 
 //get currentImageName. NOTE, ONLY RUN SCRIPT ON REFERENCE IMAGES.
 print("Current image name: " + currentImageName);
-if (!currentImageName.contains(refStain))
+if (currentImageName != refFileName)
     //print 'WARNING: non-reference image name detected. Only run script on reference images'
     throw new Exception("WARNING: non-reference image name detected: " + currentImageName + ". Only run script on reference images")
 currentRefSlideName=currentImageName.split('_')
@@ -172,7 +183,7 @@ print 'Processing: ' + currentRefSlideName
 // refStain (there shouldn't be any with refStain generated as it's created below as an identity matrix, however running
 // calculate-transforms.groovy with different refStains set can cause them to be generated, and override the identity matrix set below)
 //print 'all_moving_file_map: ' + all_moving_file_map
-filteredMap= all_moving_file_map.findAll {it.key.contains(currentRefSlideName) && !it.key.contains(refStain)}
+filteredMap=all_moving_file_map.findAll {it.key.contains(currentRefSlideName) && it.key != refFileName}
 //print 'filteredMap' + filteredMap
 
 def reference_transform_map = [
